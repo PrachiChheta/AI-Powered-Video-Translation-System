@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Translator - AI Powered</title>
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        const VideoTranslationApp = () => {
+          const [file, setFile] = useState(null);
+          const [sourceLang, setSourceLang] = useState('English');
+          const [targetLang, setTargetLang] = useState('Chinese');
+          const [status, setStatus] = useState('idle');
+          const [progress, setProgress] = useState('');
+          const [result, setResult] = useState(null);
+          const [error, setError] = useState('');
+
+          const languages = [
+            'English', 'Chinese', 'Spanish', 'French', 'German', 
+            'Japanese', 'Korean', 'Italian', 'Portuguese', 'Russian'
+          ];
+
+          const handleFileChange = (e) => {
+            const selectedFile = e.target.files[0];
+            if (selectedFile && selectedFile.type.startsWith('video/')) {
+              setFile(selectedFile);
+              setError('');
+              setStatus('idle');
+              setResult(null);
+            } else {
+              setError('Please select a valid video file');
+            }
+          };
+
+          const handleSubmit = async () => {
+            if (!file) {
+              setError('Please select a video file');
+              return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('source_language', sourceLang);
+            formData.append('target_language', targetLang);
+
+            setStatus('uploading');
+            setProgress('Uploading video... Please wait');
+            setError('');
+            setResult(null);
+
+            try {
+              console.log('Starting upload...');
+              
+              const response = await fetch('http://localhost:8000/api/translate-video', {
+                method: 'POST',
+                body: formData,
+              });
+
+              console.log('Upload complete, processing...');
+              setStatus('processing');
+              setProgress('Processing video... This may take a few minutes');
+
+              if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Translation failed');
+              }
+
+              const data = await response.json();
+              console.log('Translation complete:', data);
+              
+              setStatus('completed');
+              setResult(data);
+              setProgress('Translation completed!');
+            } catch (err) {
+              console.error('Error:', err);
+              setStatus('error');
+              setError(err.message || 'An error occurred during translation');
+              setProgress('');
+            }
+          };
+
+          const downloadTranscript = (content, filename) => {
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+          };
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50">
+              <header className="bg-white shadow-sm border-b border-gray-200">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-3 rounded-lg">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <h1 className="text-3xl font-bold text-gray-900">Video Translator</h1>
+                      <p className="text-sm text-gray-600">Transcribe and translate video audio with AI</p>
+                    </div>
+                  </div>
+                </div>
+              </header>
+
+              <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+                  <div className="p-8">
+                    <div className="space-y-8">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-3">
+                          Upload Video File
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept="video/*"
+                            onChange={handleFileChange}
+                            className="hidden"
+                            id="video-upload"
+                            disabled={status === 'uploading' || status === 'processing'}
+                          />
+                          <label
+                            htmlFor="video-upload"
+                            className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+                              file
+                                ? 'border-blue-400 bg-blue-50'
+                                : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+                            } ${
+                              status === 'uploading' || status === 'processing'
+                                ? 'opacity-50 cursor-not-allowed'
+                                : ''
+                            }`}
+                          >
+                            {file ? (
+                              <div className="flex flex-col items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>
+                                </svg>
+                                <p className="text-sm font-medium text-gray-700">{file.name}</p>
+                                <p className="text-xs text-gray-500">
+                                  {(file.size / (1024 * 1024)).toFixed(2)} MB
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                                <p className="text-sm font-medium text-gray-700">
+                                  Click to upload or drag and drop
+                                </p>
+                                <p className="text-xs text-gray-500">MP4, AVI, MOV, or any video format</p>
+                              </div>
+                            )}
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-3">
+                            Source Language
+                          </label>
+                          <select
+                            value={sourceLang}
+                            onChange={(e) => setSourceLang(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            disabled={status === 'uploading' || status === 'processing'}
+                          >
+                            {languages.map((lang) => (
+                              <option key={lang} value={lang}>
+                                {lang}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-3">
+                            Target Language
+                          </label>
+                          <select
+                            value={targetLang}
+                            onChange={(e) => setTargetLang(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            disabled={status === 'uploading' || status === 'processing'}
+                          >
+                            {languages.map((lang) => (
+                              <option key={lang} value={lang}>
+                                {lang}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleSubmit}
+                        disabled={!file || status === 'uploading' || status === 'processing'}
+                        className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold py-4 rounded-lg hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                      >
+                        {status === 'uploading' || status === 'processing' ? (
+                          <>
+                            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            {progress}
+                          </>
+                        ) : (
+                          <>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>
+                            </svg>
+                            Translate Video
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {error && (
+                      <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
+                          <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                        </svg>
+                        <p className="text-sm text-red-800">{error}</p>
+                      </div>
+                    )}
+
+                    {(status === 'uploading' || status === 'processing') && (
+                      <div className="mt-6 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-3 mb-3">
+                          <svg className="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <div>
+                            <h3 className="text-lg font-semibold text-blue-900">{progress}</h3>
+                            <p className="text-sm text-blue-700 mt-1">
+                              {status === 'uploading' ? 'Uploading your video to the server...' : 'Transcribing audio and translating text...'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="w-full bg-blue-200 rounded-full h-2">
+                          <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{width: status === 'uploading' ? '33%' : '66%'}}></div>
+                        </div>
+                      </div>
+                    )}
+
+                    {status === 'completed' && result && (
+                      <div className="mt-6 p-6 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-3 mb-4">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                          </svg>
+                          <h3 className="text-lg font-semibold text-green-900">
+                            Translation Completed Successfully!
+                          </h3>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => downloadTranscript(result.original_transcript, 'original_transcript.txt')}
+                              className="flex-1 px-4 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center gap-2 font-medium"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                              </svg>
+                              Original Transcript
+                            </button>
+                            <button
+                              onClick={() => downloadTranscript(result.translated_transcript, 'translated_transcript.txt')}
+                              className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all flex items-center justify-center gap-2 font-medium shadow-md"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                              </svg>
+                              Translated Transcript
+                            </button>
+                          </div>
+
+                          <div className="bg-white rounded-lg p-4 border border-gray-200">
+                            <h4 className="text-sm font-semibold text-gray-700 mb-3">📝 Translated Transcript Preview</h4>
+                            <div className="bg-gray-50 p-4 rounded border border-gray-200 max-h-96 overflow-y-auto">
+                              {result.translated_transcript.split('\n').map((line, i) => (
+                                <div key={i} className="mb-2 hover:bg-gray-100 p-2 rounded transition-colors text-sm text-gray-700 font-mono">
+                                  {line}
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                              💡 Scroll to see full transcript. Click download buttons above to save files.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>
+                      </svg>
+                    </div>
+                    <h3 className="font-semibold text-gray-900 mb-2">Audio Transcription</h3>
+                    <p className="text-sm text-gray-600">
+                      Extract audio and transcribe speech using OpenAI Whisper AI
+                    </p>
+                  </div>
+                  
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <div className="bg-cyan-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>
+                      </svg>
+                    </div>
+                    <h3 className="font-semibold text-gray-900 mb-2">AI Translation</h3>
+                    <p className="text-sm text-gray-600">
+                      Translate transcripts to multiple languages using GPT-4
+                    </p>
+                  </div>
+                  
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <div className="bg-green-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                      </svg>
+                    </div>
+                    <h3 className="font-semibold text-gray-900 mb-2">Export Subtitles</h3>
+                    <p className="text-sm text-gray-600">
+                      Download timestamped transcripts ready for subtitle use
+                    </p>
+                  </div>
+                </div>
+              </main>
+            </div>
+          );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<VideoTranslationApp />);
+    </script>
+</body>
+</html>
